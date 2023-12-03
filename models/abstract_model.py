@@ -1,10 +1,7 @@
 from tqdm import tqdm
 import numpy as np
+from dataset import dataset_split, read_csv
 
-
-def get_model(config):
-    if config['model_type'] == "dumb":
-        return DumbModel(config)
     
 
 class Model(object):
@@ -12,12 +9,24 @@ class Model(object):
     Each model should be able to train and predict
     Note that train() takes all training data, but predict only takes one datum
 
-    Args:
-        ABC (_type_): _description_
     """
     def __init__(self, config) -> None:
         super().__init__()
         self.config = config
+        print("reading dataset ......")
+        interaction_header, interactions = read_csv('archive/RAW_interactions.csv')
+        self.interations = interactions
+                
+        X, Y = self.extract_feature(interactions)
+        self.train_X, self.train_Y, self.val_X, self.val_Y, self.test_X, self.test_Y = dataset_split(X,Y)
+        
+       
+    
+    # overridable
+    def extract_feature(self, interactions):
+        X = ([(d[0], d[1], d[2], d[4]) for d in interactions])
+        Y = np.array([int(d[3]) for d in interactions])
+        return X, Y
     
     # abstractmethod
     def predict(self, datum):
@@ -39,7 +48,7 @@ class Model(object):
         pass
     
     
-    def train(self, train_X, train_Y, val_X, val_Y):
+    def train(self):
         """update model. 
         This function is only useful when models will keep updating and 
         numerically converge to some point 
@@ -51,10 +60,10 @@ class Model(object):
             val_Y: val label
         """
         
-        self.train_X, self.train_Y, self.val_X, self.val_Y = train_X, train_Y, val_X, val_Y
+        
         pbar = tqdm(range(self.config['epoch']))
         epoch_of_converge = 0
-        self.smallest_val_MSE = float('inf')
+        self.best_accu = 0
         file_train_output = open(self.config['file_output_dir_path']+"training_log.txt", "w") 
         
         for epoch in pbar:
@@ -63,9 +72,11 @@ class Model(object):
             # print("now interate")
             self.iterate()
             # print("now")
-            curr_val_MSE = self.compute_val_loss(self.val_X, self.val_Y)
-            if curr_val_MSE < self.smallest_val_MSE:
-                self.smallest_val_MSE = curr_val_MSE
+            val_pred = np.array([ self.predict(datum)  for datum in self.val_X])
+            curr_val_MSE = self.compute_loss(val_pred, self.val_Y)
+            curr_val_acuu = self.compute_accu(val_pred, self.val_Y)
+            if curr_val_acuu > self.best_accu:
+                self.best_accu = curr_val_acuu
                 epoch_of_converge = 0
                 self.save_best_params()
             else:
@@ -73,19 +84,21 @@ class Model(object):
             
             # uncomment this if you want a progress bar    
             # pbar.set_description(f"curr_MSE: {curr_val_MSE}")
-            file_train_output.write(f"At epoch {epoch}, validation MSE: {curr_val_MSE}/n")
+            file_train_output.write(f"At epoch {epoch}, validation MSE: {curr_val_MSE}\n")
+            file_train_output.write(f"At epoch {epoch}, validation accuracy: {curr_val_acuu}\n")
             
-    def compute_loss(self, X, Y):
+    def compute_loss(self, pred, Y):
         ground_truth = Y
-        pred =  np.array([ self.predict(datum)  for datum in X])
         return  ((ground_truth - pred)**2).mean(axis=0)
     
-class DumbModel(Model):
-    '''
-    this dumb model does nothing but directly gives a rating
-    '''
-    def train(self, train_X, train_Y):
-        pass
+    def compute_accu(self, pred, Y):
+        return np.sum(np.round(pred) == Y) /  len(Y)
     
-    def predict(self, config):
-        return config['dumb_output']
+    def test(self):
+        file_test_output = open(self.config['file_output_dir_path']+"testing_log.txt", "w") 
+        best_model = self.load_best_params()
+        test_pred = np.array([ best_model.predict(datum)  for datum in self.test_X])
+        test_mse = self.compute_loss(test_pred, self.test_Y)
+        test_acc = self.compute_accu(test_pred, self.test_Y)
+        file_test_output.write(f"Test MSE is {test_mse}\n")
+        file_test_output.write(f"Test accuracy is {test_acc}\n")

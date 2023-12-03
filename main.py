@@ -7,12 +7,12 @@ if __name__ == "__main__":
     seed = 10086
     np.random.seed(seed)
     random.seed(seed)
-    
-    if len(sys.argv) > 2:
+    if len(sys.argv) >= 2:
         config_path = sys.argv[1]
         
     else:
-        raise Exception(" missing config_path")
+        config_path = " configs/dumb_model.yaml"
+        # raise Exception(" missing config_path")
     
     # load config file
     with open(config_path, "r") as stream:

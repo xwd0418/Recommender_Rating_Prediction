@@ -1,31 +1,28 @@
 import random
+import csv
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 
-# load dataset
-def load_dataset():
-    """loading dataset
+from collections import defaultdict
+from datetime import datetime
 
-    Returns:
-        all_data, all_labels
-    """
-
-    all_data = []
-    # TODO: downloading dataset and put data into a list
-    # each item in the list all_data should be a tuple with 2 elements
-    # the first element is a dict of data details (recipe id, name, steps, etc)
-    # the second element is the lable (rating)
-    random.shuffle(all_data)
-    X, Y = zip(*all_data) 
-    return X, Y
-
-def dataset_split():
-    X, Y = load_dataset()
+# load dataset and split
     
-    train_split = len(X)//10 * 8
-    val_split = len(X)//10 * 9
-    
+def dataset_split(X,Y):  
+    train_split = int(len(X)/10 * 9)
+    val_split = int(len(X)/10 * 9.5) 
     train_X, train_Y = X[:train_split], Y[:train_split]
     val_X, val_Y = X[train_split:val_split], Y[train_split:val_split]
-    test_X, test_Y = X[val_split:], Y[:val_split]
+    test_X, test_Y = X[val_split:], Y[val_split:]
     
     return train_X, train_Y, val_X, val_Y, test_X, test_Y
 
+
+def read_csv(path):
+    rows = []
+    with open(path, 'r',  encoding='utf-8') as file:
+        csvreader = csv.reader(file)
+        header = next(csvreader)
+        for row in csvreader:
+            rows.append(row)
+    return header, rows

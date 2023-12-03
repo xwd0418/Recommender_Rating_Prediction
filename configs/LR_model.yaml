@@ -1,0 +1,2 @@
+model_type: LR
+regularize_coeff: 1.0
